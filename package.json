@@ -1,0 +1,26 @@
+{
+  "name": "slimbot",
+  "version": "1.0.0",
+  "description": "low entry server for running generals bots",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "generals.io",
+    "bot",
+    "node.js",
+    "javascript",
+    "example"
+  ],
+  "author": "Jonathan Sirrine",
+  "license": "ISC",
+  "dependencies": {
+    "figlet": "^1.5.2",
+    "socket.io-client": "^1.7.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.6.0"
+  }
+}
