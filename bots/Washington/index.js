@@ -5,7 +5,7 @@
  * @format
  */
 
-const fs = require('fs');
+const { EventEmitter } = require('events');
 const Objective = require('./objective.js');
 
 // Terrain Constants.
@@ -118,6 +118,7 @@ module.exports = class Bot {
     this.user_id = config.user_id;
     this.username = config.username;
     this.socket = config.socket;
+    this.em = new EventEmitter();
     this.file = config.file;
     this.created_at = new Date().toLocaleString();
     this.log(`Bot ${config.username} created ${this.created_at}`);
@@ -137,7 +138,7 @@ module.exports = class Bot {
   // runs twice every game tick
   game_update = (data) => {
     this.log('=================================');
-    this.log(`GAME TICK ${data.turn / 2}`);
+    this.log(`GAME TICK ${data.turn / 2} (owned: ${this.owned.length})`);
     this.log('=================================');
 
     this.gatherIntel(data);
@@ -172,7 +173,7 @@ module.exports = class Bot {
         }
         if (Math.abs(this.internal_tick - this.first_fail) < 3) {
           this.log(`Retry Attempt #${this.internal_tick - this.first_fail}`);
-          this.attack(this.lastAttemptedMove.from, this.lastAttemptedMove.to);
+          this.attack_alt(this.lastAttemptedMove.from, this.lastAttemptedMove.to);
           return;
         } else {
           this.log('Giving up on move, clearing queue');
@@ -212,54 +213,54 @@ module.exports = class Bot {
   // when these are called, emit an evit by the same name for the bot server to send to the game server
   set_username = (user_id = this.user_id, username = this.username) => {
     this.log('Setting bot username');
-    this.socket.emit('set_username', user_id, username);
+    this.em.emit('set_username', user_id, username);
   };
   play = (user_id = this.user_id) => {
     this.log('Joining FFA');
-    this.socket.emit('play', user_id);
+    this.em.emit('play', user_id);
   };
   join_1v1 = (user_id = this.user_id) => {
     this.log('Joining 1v1');
-    this.socket.emit('join_1v1', user_id);
+    this.em.emit('join_1v1', user_id);
   };
   join_private = (custom_game_id, user_id = this.user_id) => {
-    this.socket.emit('join_private', custom_game_id, user_id);
+    this.em.emit('join_private', custom_game_id, user_id);
   };
   set_custom_team = (custom_game_id, team) => {
     this.log(`Joining custom team ${team} on ${custom_game_id}`);
-    this.socket.emit('set_custom_team', custom_game_id, team);
+    this.em.emit('set_custom_team', custom_game_id, team);
   };
   join_team = (team_id, user_id = this.user_id) => {
     this.log(`Joining team ${team_id}`);
-    this.socket.emit('join_team', team_id, user_id);
+    this.em.emit('join_team', team_id, user_id);
   };
   leave_team = (team_id) => {
     this.log(`Leaving team ${team_id}`);
-    this.socket.emit('leave_team', team_id);
+    this.em.emit('leave_team', team_id);
   };
   cancel = () => {
     this.log('Leaving the game queue');
-    this.socket.emit('cancel');
+    this.em.emit('cancel');
   };
   set_force_start = (queue_id, doForce) => {
-    this.socket.emit('set_force_start', queue_id, doForce);
+    this.em.emit('set_force_start', queue_id, doForce);
   };
   clear_moves = () => {
-    this.socket.emit('clear_moves');
+    this.em.emit('clear_moves');
   };
   pint_tile = (index) => {
-    this.socket.emit('ping_tile', index);
+    this.em.emit('ping_tile', index);
   };
   chat_message = (text, chat_room = this.chat_room) => {
-    this.socket.emit('chat_message', chat_room, text);
+    this.em.emit('chat_message', chat_room, text);
   };
   // contrived function that allows bot to specify team only chat
   team_chat_message = (text, chat_room = this.team_chat_room) => {
-    this.socket.emit('chat_message', chat_room, text); // purposefully emits 'chat_message' with team_chat_room
+    this.em.emit('chat_message', chat_room, text); // purposefully emits 'chat_message' with team_chat_room
   };
   leave_game = () => {
     this.log('Leaving game');
-    this.socket.emit('leave_game');
+    this.em.emit('leave_game');
   };
   // (user_id = this.user_id)
   stars_and_rank = () => {};
@@ -297,9 +298,10 @@ module.exports = class Bot {
         return param;
       }
     });
-    fs.appendFileSync(this.file, lines.join(' ') + '\n', (err) => {
-      if (err) console.log(err);
-    });
+    this.em.emit('log', lines.join(' '));
+    // fs.appendFileSync(this.file, lines.join(' ') + '\n', (err) => {
+    //   if (err) console.log(err);
+    // });
   };
 
   /*
@@ -466,14 +468,24 @@ module.exports = class Bot {
     };
   };
 
-  attack = function (from, to, is50 = false) {
-    this.log(`launching attacking from ${from} to ${to}`);
+  attack_alt = (from, to, is50 = false) => {
+    this.log(`launching alt attack from ${from} to ${to}`);
     this.lastAttemptedMove = this.recordMove(from, to);
     this.current_tile = to;
     if (this.armiesAtTile(from) < 2){
       this.log(`CANNOT MOVE FROM THIS ONE BECAUSE IT DOESN'T HAVE ENOUGH ARMIES!!!! ${this.armiesAtTile(from)}`);
     }
     this.socket.emit('attack', from, to, is50);
+  };
+
+  attack = function (from, to, is50 = false) {
+    this.log(`launching attack from ${from} to ${to}`);
+    this.lastAttemptedMove = this.recordMove(from, to);
+    this.current_tile = to;
+    if (this.armiesAtTile(from) < 2){
+      this.log(`CANNOT MOVE FROM THIS ONE BECAUSE IT DOESN'T HAVE ENOUGH ARMIES!!!! ${this.armiesAtTile(from)}`);
+    }
+    this.em.emit('attack', from, to, is50);
   };
 
   left = (index) => {
