@@ -122,6 +122,7 @@ module.exports = class Bot {
     this.file = config.file;
     this.created_at = new Date().toLocaleString();
     this.log(`Bot ${config.username} created ${this.created_at}`);
+    this.attack = config.attack_function;
   }
 
   // each function is named after the event received from the game server
@@ -172,7 +173,7 @@ module.exports = class Bot {
           this.log(`FOUND FAILED MOVE (seen since tick: ${this.first_fail})`);
         }
         if (Math.abs(this.internal_tick - this.first_fail) < 3) {
-          this.log(`Retry Attempt #${this.internal_tick - this.first_fail}`);
+          this.log(`Retry Attempt #${(this.internal_tick - this.first_fail) + 1}`);
           this.attack_alt(this.lastAttemptedMove.from, this.lastAttemptedMove.to);
           return;
         } else {
@@ -468,7 +469,7 @@ module.exports = class Bot {
     };
   };
 
-  attack_alt = (from, to, is50 = false) => {
+  attack_local = (from, to, is50 = false) => {
     this.log(`launching alt attack from ${from} to ${to}`);
     this.lastAttemptedMove = this.recordMove(from, to);
     this.current_tile = to;
@@ -478,7 +479,7 @@ module.exports = class Bot {
     this.socket.emit('attack', from, to, is50);
   };
 
-  attack = function (from, to, is50 = false) {
+  attack_alt = (from, to, is50 = false) => {
     this.log(`launching attack from ${from} to ${to}`);
     this.lastAttemptedMove = this.recordMove(from, to);
     this.current_tile = to;
@@ -489,19 +490,19 @@ module.exports = class Bot {
   };
 
   left = (index) => {
-    this.attack(index, this.getLeft(index));
+    this.attack(index, this.getLeft(index), this);
   };
 
   right = (index) => {
-    this.attack(index, this.getRight(index));
+    this.attack(index, this.getRight(index), this);
   };
 
   down = (index) => {
-    this.attack(index, this.getDown(index));
+    this.attack(index, this.getDown(index), this);
   };
 
   up = (index) => {
-    this.attack(index, this.getUp(index));
+    this.attack(index, this.getUp(index), this);
   };
 
   // check if file is frontline tile
@@ -874,7 +875,7 @@ module.exports = class Bot {
         // The next queue in line is empty and we need to handle that now.
       } else {
         let completed_objective = this.objective_queue.shift();
-        this.log('process old objective', completed_objective);
+        this.log('process out old objective');
 
         // consider renewing objective immediately
         if (
@@ -1108,7 +1109,7 @@ module.exports = class Bot {
     }
 
     // perform move to
-    this.attack(move_from, move_to);
+    this.attack(move_from, move_to, false, this);
   };
 
   randomMoveFromTile = (
@@ -1372,7 +1373,7 @@ module.exports = class Bot {
         );
         objective.complete = true;
       }
-      this.attack(this.current_tile, next_tile);
+      this.attack(this.current_tile, next_tile, false, this);
       this.current_tile = next_tile;
     }
     return objective;

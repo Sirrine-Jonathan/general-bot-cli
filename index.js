@@ -10,7 +10,7 @@ const fs = require('fs');
 const figlet = require('figlet');
 const docs = require('./docs');
 const io = require('socket.io-client');
-const base = 'https://bot.generals.io'; // wss://botws.generals.io
+const base = 'https://bot.generals.io'; // wss://botws.generals.io || https://bot.generals.io
 const socket = io(base);
 
 let replay_url = null;
@@ -24,6 +24,7 @@ let global_bot = null;
 let file = null;
 let running = false;
 const afterQ = '\n>:';
+
 
 // get bot names
 // eslint-disable-next-line no-undef
@@ -55,7 +56,6 @@ const readline = require('readline').createInterface({
 function log(line){
   log_lines = [...log_lines, line];
 }
-console.log(log);
 
 function writeLog(){
   if (log_lines.length > 0 && file){
@@ -234,6 +234,15 @@ function loadBot(bot_name, uselog = false){
     username: global_bot_config.username,
     socket,
     file,
+    attack_function: (from, to, is50 = false, self) => {
+      log(`launching parent function attack from ${from} to ${to}`);
+      self.lastAttemptedMove = self.recordMove(from, to);
+      self.current_tile = to;
+      if (self.armiesAtTile(from) < 2){
+        log(`CANNOT MOVE FROM THIS ONE BECAUSE IT DOESN'T HAVE ENOUGH ARMIES!!!! ${this.armiesAtTile(from)}`);
+      }
+      socket.emit('attack', from, to, is50);
+    }
   });
   attachSendEvents();
   attachReceiveEvents();
